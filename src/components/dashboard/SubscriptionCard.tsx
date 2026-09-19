@@ -6,7 +6,6 @@ import {
   Clock,
   ShieldCheck,
   CheckCircle,
-  ExternalLink,
   Zap,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "../../lib/utils";
@@ -66,13 +65,13 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-primary font-medium text-xs tracking-wider uppercase">
               <Zap className="h-4 w-4" />
-              Pro Webhook Management
+              HookFlow Plan
             </div>
             <StatusBadge status="None" />
           </div>
           <CardTitle className="text-2xl font-bold mt-1">No Active Subscription</CardTitle>
           <CardDescription className="text-sm">
-            Unlock automated webhook retry workflows, phone alerts, and full analytics.
+            Subscribe now to unlock all premium features, automated delivery, and alerts.
           </CardDescription>
         </CardHeader>
 
@@ -90,15 +89,15 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             <ul className="mt-4 space-y-2 text-xs text-muted-foreground">
               <li className="flex items-center gap-2">
                 <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                Unlimited automated webhook delivery & retries
+                Full access to all platform features & workflows
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                WhatsApp instant alerts for failed webhooks
+                Real-time delivery notifications & phone alerts
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                Zero transaction lock-in &bull; Cancel anytime
+                Zero lock-in • Cancel online anytime
               </li>
             </ul>
           </div>
@@ -133,7 +132,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             <div className="flex items-center gap-2.5">
               <AlertTriangle className="h-5 w-5 shrink-0 text-white animate-pulse" />
               <span>
-                <strong>Payment Failed.</strong> Your card could not be charged. Please update your payment method to restore webhook services.
+                <strong>Payment Failed.</strong> Your card could not be charged. Please update your payment method to restore access.
               </span>
             </div>
             <PayNowButton
@@ -152,7 +151,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             <div className="flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-primary" />
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                HookFlow Pro Subscription
+                Current Plan
               </span>
             </div>
             <StatusBadge status={subscription.status} />
@@ -160,13 +159,13 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           <CardTitle className="text-2xl font-bold mt-1">
             {isActive && "Active Subscription"}
             {isOverdue && "Subscription Overdue"}
-            {isPending && "Payment Pending Confirmation"}
+            {isPending && "Payment Pending"}
             {isCancelled && "Subscription Cancelled"}
           </CardTitle>
           <CardDescription>
-            {isActive && `All automated webhook pipelines and retry workers are operating smoothly.`}
-            {isOverdue && `Scheduled retry worker paused pending card authorization update.`}
-            {isPending && `Complete the checkout link to activate your recurring billing.`}
+            {isActive && `Your subscription is active and in good standing.`}
+            {isOverdue && `Payment could not be processed. Please update your card to continue service.`}
+            {isPending && `Complete checkout to activate your recurring subscription.`}
             {isCancelled && `Billing is cancelled. Access remains valid until ${formatDate(subscription.dueDate)}.`}
           </CardDescription>
         </CardHeader>
@@ -203,53 +202,49 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 {formatDate(subscription.dueDate)}
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground">
-                {isActive && "Auto-debit via Razorpay"}
+                {isActive && "Auto-renews each billing cycle"}
                 {isOverdue && "Payment collection overdue"}
                 {isCancelled && "No future renewals scheduled"}
-                {isPending && "Awaiting first invoice completion"}
+                {isPending && "Awaiting initial checkout"}
               </div>
             </div>
 
             {/* Subscription ID */}
             <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
-              <div className="text-xs font-medium text-muted-foreground">Subscription ID</div>
+              <div className="text-xs font-medium text-muted-foreground">Billing Reference</div>
               <div className="mt-1 font-mono text-xs font-semibold text-foreground truncate" title={subscription.razorpaySubscriptionId || "N/A"}>
-                {subscription.razorpaySubscriptionId || "Generating..."}
+                {subscription.razorpaySubscriptionId || "—"}
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground">
-                Razorpay ID Reference
+                Support Reference ID
               </div>
             </div>
           </div>
 
-          {/* Pending or Overdue Callout */}
-          {isPending && subscription.paymentLink && (
+          {/* Pending Callout */}
+          {isPending && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
               <div className="flex items-center gap-3">
                 <Clock className="h-5 w-5 text-amber-600 shrink-0" />
                 <span className="text-xs text-amber-900 dark:text-amber-200">
-                  Your payment link was generated. Please finish the checkout to activate.
+                  Your payment is pending confirmation. Complete checkout in the popup modal to activate your subscription.
                 </span>
               </div>
-              <a
-                href={subscription.paymentLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 w-full sm:w-auto"
-              >
-                <Button size="sm" variant="default" className="w-full gap-2">
-                  Complete Payment
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
-              </a>
+              <PayNowButton
+                label="Complete Payment"
+                size="sm"
+                variant="default"
+                className="w-full sm:w-auto shrink-0 shadow-sm"
+                onSuccess={onRefresh}
+              />
             </div>
           )}
         </CardContent>
 
         <CardFooter className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-6 py-4">
           <div className="text-xs text-muted-foreground">
-            {isActive && `Protected by 256-bit encryption &bull; Immediate plan control`}
-            {isOverdue && `Update payment method to prevent automatic webhook deactivation.`}
+            {isActive && `Protected by 256-bit encryption • Immediate plan control`}
+            {isOverdue && `Update payment method to prevent automatic plan deactivation.`}
             {isCancelled && `Plan status is currently inactive.`}
           </div>
 
@@ -288,10 +283,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               />
             )}
 
-            {/* If Pending without paymentLink, allow generating one */}
-            {isPending && !subscription.paymentLink && (
+            {/* If Pending, allow completing checkout via modal */}
+            {isPending && (
               <PayNowButton
-                label="Complete Checkout"
+                label="Complete Payment"
                 variant="default"
                 size="sm"
                 onSuccess={onRefresh}

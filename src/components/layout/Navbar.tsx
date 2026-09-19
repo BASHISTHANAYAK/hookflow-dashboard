@@ -18,6 +18,8 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const isUserAdmin = isAdmin || user?.role === "ADMIN";
+
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -31,7 +33,7 @@ export const Navbar: React.FC = () => {
         {/* Brand */}
         <div className="flex items-center gap-6">
           <Link
-            to="/dashboard"
+            to={isUserAdmin ? "/admin" : "/dashboard"}
             className="flex items-center gap-2.5 transition-transform hover:scale-[1.01]"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
@@ -47,25 +49,30 @@ export const Navbar: React.FC = () => {
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - Strictly Role-Based */}
           {user && (
             <nav className="hidden md:flex items-center gap-1">
-              <Link
-                to="/dashboard"
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive("/dashboard")
-                    ? "bg-secondary text-foreground font-semibold"
-                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                }`}
-              >
-                <CreditCard className="h-4 w-4" />
-                My Subscription
-              </Link>
-              {isAdmin && (
+              {/* CUSTOMER: Show "My Subscription", hide "Admin Console" */}
+              {!isUserAdmin && (
+                <Link
+                  to="/dashboard"
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive("/dashboard")
+                      ? "bg-secondary text-foreground font-semibold"
+                      : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                  }`}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  My Subscription
+                </Link>
+              )}
+
+              {/* ADMIN: Show "Admin Console", hide "My Subscription" */}
+              {isUserAdmin && (
                 <Link
                   to="/admin"
                   className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive("/admin")
+                    isActive("/admin") || isActive("/dashboard")
                       ? "bg-secondary text-foreground font-semibold"
                       : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                   }`}
@@ -90,12 +97,14 @@ export const Navbar: React.FC = () => {
                   {user.email}
                 </span>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <Badge
-                    variant={user.role === "ADMIN" ? "default" : "secondary"}
-                    className="text-[10px] px-1.5 py-0 h-4"
-                  >
-                    {user.role}
-                  </Badge>
+                  {isUserAdmin && (
+                    <Badge
+                      variant="default"
+                      className="text-[10px] px-1.5 py-0 h-4 bg-indigo-600 text-white font-medium"
+                    >
+                      ADMIN
+                    </Badge>
+                  )}
                   {user.phoneNumber && (
                     <span className="text-[10px] text-muted-foreground">
                       {user.phoneNumber}
@@ -157,9 +166,11 @@ export const Navbar: React.FC = () => {
                     {user.email}
                   </span>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
-                      {user.role}
-                    </Badge>
+                    {isUserAdmin && (
+                      <Badge variant="default" className="text-[10px] bg-indigo-600 text-white font-medium">
+                        ADMIN
+                      </Badge>
+                    )}
                     {user.phoneNumber && (
                       <span className="text-xs text-muted-foreground">
                         {user.phoneNumber}
@@ -169,23 +180,26 @@ export const Navbar: React.FC = () => {
                 </div>
               </div>
 
+              {/* Mobile Navigation Links - Strictly Role-Based */}
               <div className="flex flex-col space-y-1">
-                <Link
-                  to="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium ${
-                    isActive("/dashboard") ? "bg-secondary font-semibold" : ""
-                  }`}
-                >
-                  <CreditCard className="h-4 w-4" />
-                  My Subscription
-                </Link>
-                {isAdmin && (
+                {!isUserAdmin && (
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium ${
+                      isActive("/dashboard") ? "bg-secondary font-semibold" : ""
+                    }`}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    My Subscription
+                  </Link>
+                )}
+                {isUserAdmin && (
                   <Link
                     to="/admin"
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium ${
-                      isActive("/admin") ? "bg-secondary font-semibold" : ""
+                      isActive("/admin") || isActive("/dashboard") ? "bg-secondary font-semibold" : ""
                     }`}
                   >
                     <Shield className="h-4 w-4 text-indigo-500" />

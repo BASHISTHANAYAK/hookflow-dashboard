@@ -14,10 +14,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       </main>
       <footer className="border-t border-border/60 py-6 text-center text-xs text-muted-foreground">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>&copy; {new Date().getFullYear()} HookFlow SaaS Billing &bull; All rights reserved.</span>
-          <span className="flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
-            Razorpay Subscriptions v1 Connected
+          <span>&copy; {new Date().getFullYear()} HookFlow. All rights reserved.</span>
+          <span className="flex items-center gap-1.5 text-muted-foreground/80">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+            Secured by Razorpay • 256-bit SSL encryption
           </span>
         </div>
       </footer>

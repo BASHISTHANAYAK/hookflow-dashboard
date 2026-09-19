@@ -115,6 +115,9 @@ export interface RazorpayOptions {
   key: string;
   subscription_id?: string;
   subscription_card_change?: number;
+  name?: string;
+  description?: string;
+  image?: string;
   handler?: (response: {
     razorpay_payment_id?: string;
     razorpay_subscription_id?: string;
@@ -132,6 +135,7 @@ export interface RazorpayOptions {
   theme?: {
     color?: string;
   };
+  [key: string]: any;
 }
 
 export interface RazorpayInstance {

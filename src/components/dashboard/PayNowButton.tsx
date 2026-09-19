@@ -3,7 +3,36 @@ import { CreditCard, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { generateLinkApi } from "../../api/billing";
 import { useAuthStore } from "../../store/authStore";
+import { RazorpayOptions } from "../../types";
 import { Button, ButtonProps } from "../ui/button";
+
+// Dynamically load Razorpay checkout.js SDK
+export const loadRazorpayScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (typeof window.Razorpay === "function") {
+      resolve(true);
+      return;
+    }
+
+    const existingScript = document.getElementById("razorpay-checkout-js");
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(true));
+      existingScript.addEventListener("error", () => resolve(false));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "razorpay-checkout-js";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => {
+      console.error("Failed to load Razorpay Checkout SDK");
+      resolve(false);
+    };
+    document.body.appendChild(script);
+  });
+};
 
 interface PayNowButtonProps extends Omit<ButtonProps, "onClick"> {
   onSuccess?: () => void;
@@ -22,75 +51,77 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { user } = useAuthStore();
-  const razorpayKey =
-    import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_TcFM2YEgkip1tu";
+  const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
-  const handleCheckout = async () => {
+  const handleSubscribe = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
 
     try {
-      toast.info("Preparing checkout session...", { duration: 2500 });
+      toast.info("Preparing checkout modal...", { duration: 2000 });
+
+      // 1. Call backend to generate subscription/link
       const data = await generateLinkApi();
 
-      const subId =
-        data.subscriptionId || data.razorpaySubscriptionId;
+      const subId = data.subscriptionId || data.razorpaySubscriptionId;
       const requiresCardUpdate =
         Boolean(data.requiresCardUpdate) || isCardUpdate;
 
-      // Check if Razorpay SDK script is loaded in window
-      if (typeof window.Razorpay === "function" && subId) {
-        const options = {
-          key: razorpayKey,
-          subscription_id: subId,
-          subscription_card_change: requiresCardUpdate ? 1 : 0,
-          name: "HookFlow SaaS",
-          description: requiresCardUpdate
-            ? "Update payment method for recurring subscription"
-            : "HookFlow Monthly Subscription",
-          prefill: {
-            email: user?.email,
-            contact: user?.phoneNumber,
-          },
-          theme: {
-            color: "#4f46e5",
-          },
-          handler: async (_response: any) => {
-            toast.success(
-              requiresCardUpdate
-                ? "Card updated successfully!"
-                : "Payment processed successfully! Updating plan..."
-            );
-            if (onSuccess) {
-              onSuccess();
-            }
-          },
-          modal: {
-            ondismiss: () => {
-              toast.info("Checkout was closed without completing.");
-            },
-          },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      } else if (data.paymentLink) {
-        // Fallback: If Razorpay SDK is blocked by adblock or not loaded, open the generated payment link
-        toast.info("Opening Razorpay payment gateway...");
-        window.open(data.paymentLink, "_blank", "noopener,noreferrer");
-        if (onSuccess) {
-          setTimeout(onSuccess, 4000);
-        }
-      } else {
+      if (!subId) {
         throw new Error(
-          data.message || "Failed to initialize checkout. Please try again."
+          data.message || "Failed to retrieve subscription ID from server."
         );
       }
+
+      // 2. Ensure Razorpay checkout.js SDK is loaded
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || typeof window.Razorpay !== "function") {
+        throw new Error(
+          "Unable to load Razorpay payment SDK. Please check your internet connection or ad-blocker."
+        );
+      }
+
+      // 3. Open Razorpay Checkout as a popup/modal overlay on the current page
+      const options: RazorpayOptions = {
+        key: razorpayKey,
+        subscription_id: subId,
+        subscription_card_change: requiresCardUpdate ? 1 : 0,
+        name: "HookFlow",
+        description: requiresCardUpdate
+          ? "Update payment card for recurring subscription"
+          : "Monthly Subscription (499/mo)",
+        prefill: {
+          email: user?.email,
+          contact: user?.phoneNumber,
+        },
+        theme: {
+          color: "#4f46e5",
+        },
+        handler: function (_response) {
+          // Payment successful - popup closes, stay on site and refresh subscription data
+          toast.success(
+            requiresCardUpdate
+              ? "Payment method updated successfully!"
+              : "Payment successful! Your subscription is now active."
+          );
+          if (onSuccess) {
+            onSuccess();
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            toast.info("Checkout was closed without completing.");
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (err: any) {
       const msg =
         err.response?.data?.message ||
         err.message ||
-        "Could not generate payment link. Please try again.";
+        "Could not initiate checkout. Please try again.";
       toast.error("Checkout Failed", {
         description: msg,
       });
@@ -101,13 +132,13 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
 
   const defaultLabel = isCardUpdate
     ? "Update Payment Card"
-    : "Subscribe to HookFlow";
+    : "Subscribe Now";
 
   return (
     <Button
       variant={variant}
       size={size}
-      onClick={handleCheckout}
+      onClick={handleSubscribe}
       isLoading={isProcessing}
       className={`gap-2 ${className || ""}`}
       {...props}

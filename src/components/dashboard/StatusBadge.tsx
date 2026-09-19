@@ -47,8 +47,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
       );
     default:
       return (
-        <Badge variant="outline" className={`gap-1.5 font-medium ${className}`}>
-          {status || "None"}
+        <Badge variant="secondary" className={`gap-1.5 font-normal text-muted-foreground ${className}`}>
+          {status && status !== "None" ? status : "No Plan"}
         </Badge>
       );
   }

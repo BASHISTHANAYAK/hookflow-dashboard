@@ -32,7 +32,7 @@ export const getMyPlansApi = async (
 };
 
 export const generateLinkApi = async (): Promise<GenerateLinkResponse> => {
-  const response = await apiClient.post<GenerateLinkResponse>("/api/billing/generate-link");
+  const response = await apiClient.post<GenerateLinkResponse>("/api/billing/generate-link", { useSdk: true });
   return response.data;
 };
 

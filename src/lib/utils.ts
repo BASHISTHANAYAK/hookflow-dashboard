@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(dateString?: string | null): string {
-  if (!dateString) return "N/A";
+  if (!dateString || dateString === "N/A") return "—";
   try {
     const date = parseISO(dateString);
     if (isNaN(date.getTime())) {
@@ -24,7 +24,7 @@ export function formatDate(dateString?: string | null): string {
 }
 
 export function formatDateTime(dateString?: string | null): string {
-  if (!dateString) return "N/A";
+  if (!dateString || dateString === "N/A") return "—";
   try {
     const date = parseISO(dateString);
     if (isNaN(date.getTime())) {
@@ -43,7 +43,7 @@ export function formatDateTime(dateString?: string | null): string {
 }
 
 export function formatCurrency(amount?: number | null): string {
-  if (amount === undefined || amount === null) return "₹0";
+  if (amount === undefined || amount === null || amount === 0) return "—";
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",

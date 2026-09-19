@@ -1,5 +1,4 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -7,39 +6,47 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
-  ArrowLeft,
 } from "lucide-react";
 import { Button } from "../ui/button";
+
+export type AdminTab = "overview" | "users" | "sandbox";
 
 interface SidebarProps {
   collapsed?: boolean;
   onToggle?: () => void;
+  activeTab: AdminTab;
+  onSelectTab: (tab: AdminTab) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   collapsed = false,
   onToggle,
+  activeTab,
+  onSelectTab,
 }) => {
-  const location = useLocation();
-
-  const navItems = [
+  const navItems: {
+    id: AdminTab;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    description: string;
+  }[] = [
     {
+      id: "overview",
       label: "Admin Overview",
-      href: "/admin",
       icon: LayoutDashboard,
       description: "Metrics & revenue",
     },
     {
+      id: "users",
       label: "User Subscriptions",
-      href: "/admin#users",
       icon: Users,
       description: "Manage accounts",
     },
     {
-      label: "Dev Tools / Sandbox",
-      href: "/admin#dev-tools",
+      id: "sandbox",
+      label: "Dev Sandbox",
       icon: Terminal,
-      description: "Simulate webhooks",
+      description: "Simulate failures",
     },
   ];
 
@@ -75,18 +82,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Nav links */}
+      {/* Interactive Tabs */}
       <div className="flex-1 py-4 px-3 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.href || (item.href.startsWith("/admin#") && location.hash === item.href.slice(6));
+          const isActive = activeTab === item.id;
           return (
-            <a
-              key={item.label}
-              href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSelectTab(item.id)}
+              className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-primary/10 text-primary font-semibold"
+                  ? "bg-primary/10 text-primary font-semibold shadow-sm"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
               title={collapsed ? item.label : undefined}
@@ -100,24 +108,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </span>
                 </div>
               )}
-            </a>
+            </button>
           );
         })}
       </div>
 
-      <div className="p-4 border-t border-border/80">
-        <Link to="/dashboard">
-          <Button
-            variant="outline"
-            size="sm"
-            className={`w-full gap-2 text-xs ${
-              collapsed ? "px-0 justify-center" : "justify-start"
-            }`}
-          >
-            <ArrowLeft className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Customer Portal</span>}
-          </Button>
-        </Link>
+      {/* Clean footer */}
+      <div className="p-4 border-t border-border/80 text-xs text-muted-foreground">
+        {!collapsed ? (
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="inline-block h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
+            <span>Admin Workspace</span>
+          </div>
+        ) : (
+          <span className="inline-block h-2 w-2 rounded-full bg-indigo-500 mx-auto"></span>
+        )}
       </div>
     </aside>
   );
