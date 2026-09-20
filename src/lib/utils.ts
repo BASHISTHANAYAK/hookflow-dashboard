@@ -42,11 +42,11 @@ export function formatDateTime(dateString?: string | null): string {
   }
 }
 
-export function formatCurrency(amount?: number | null): string {
-  if (amount === undefined || amount === null || amount === 0) return "—";
+export function formatCurrency(amount?: number | null, currency: string = "INR"): string {
+  if (amount === undefined || amount === null) return "—";
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "INR",
+    currency: currency || "INR",
     maximumFractionDigits: 0,
   }).format(amount);
 }

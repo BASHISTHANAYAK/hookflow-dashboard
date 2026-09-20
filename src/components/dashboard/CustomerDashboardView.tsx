@@ -5,9 +5,11 @@ import { SubscriptionCard } from "./SubscriptionCard";
 import { Button } from "../ui/button";
 
 export const CustomerDashboardView: React.FC = () => {
-  // Fetch subscription data ONLY for CUSTOMER users
+  // Fetch subscription & planInfo data for CUSTOMER users
   const {
     subscription,
+    hasSubscription,
+    planInfo,
     isLoading,
     isRefetching,
     refresh,
@@ -46,6 +48,8 @@ export const CustomerDashboardView: React.FC = () => {
       <section aria-labelledby="subscription-heading">
         <SubscriptionCard
           subscription={subscription}
+          hasSubscription={hasSubscription}
+          planInfo={planInfo}
           isLoading={isLoading}
           onRefresh={refresh}
           onCancel={cancelSubscription}

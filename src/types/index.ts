@@ -43,10 +43,18 @@ export interface Pagination {
   totalPages?: number;
 }
 
+export interface PlanInfo {
+  price: number;
+  currency: string;
+  duration: string;
+  interval?: number;
+}
+
 export interface MyPlansResponse {
   message?: string;
   pagination?: Pagination;
   subscriptions?: Subscription[];
+  planInfo?: PlanInfo;
   getAllActiveSubscrptions?: Subscription[];
 }
 

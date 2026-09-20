@@ -9,7 +9,7 @@ import {
   Zap,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "../../lib/utils";
-import { Subscription } from "../../types";
+import { Subscription, PlanInfo } from "../../types";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../ui/card";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
@@ -19,6 +19,8 @@ import { CancelModal } from "./CancelModal";
 
 interface SubscriptionCardProps {
   subscription: Subscription | null | undefined;
+  hasSubscription?: boolean;
+  planInfo?: PlanInfo | null;
   isLoading: boolean;
   onRefresh: () => void;
   onCancel: () => Promise<any>;
@@ -27,6 +29,8 @@ interface SubscriptionCardProps {
 
 export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   subscription,
+  hasSubscription = false,
+  planInfo,
   isLoading,
   onRefresh,
   onCancel,
@@ -57,8 +61,24 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     );
   }
 
-  // 2. Case: No active subscription found
-  if (!subscription) {
+  // Determine if user has subscription
+  const userHasSubscription = Boolean(hasSubscription || subscription);
+
+  // 2. Case: User has NO active subscription
+  if (!userHasSubscription || !subscription) {
+    const formattedPrice =
+      planInfo?.price !== undefined
+        ? formatCurrency(planInfo.price, planInfo.currency)
+        : null;
+
+    const durationLabel = planInfo?.duration
+      ? ` / ${planInfo.duration}`
+      : " / month";
+
+    const subscribeButtonLabel = formattedPrice
+      ? `Subscribe Now (${formattedPrice})`
+      : "Subscribe Now";
+
     return (
       <Card className="w-full overflow-hidden border-dashed border-2 border-border/80 bg-gradient-to-b from-card to-card/50 shadow-sm">
         <CardHeader>
@@ -78,9 +98,17 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         <CardContent className="space-y-4">
           <div className="rounded-xl bg-secondary/50 p-4 border border-border/60">
             <div className="flex items-baseline justify-between">
-              <div>
-                <span className="text-3xl font-extrabold text-foreground">₹499</span>
-                <span className="text-sm text-muted-foreground ml-1">/ month</span>
+              <div className="flex items-baseline">
+                {formattedPrice ? (
+                  <span className="text-3xl font-extrabold text-foreground">
+                    {formattedPrice}
+                  </span>
+                ) : (
+                  <Skeleton className="h-9 w-24 inline-block align-middle" />
+                )}
+                <span className="text-sm text-muted-foreground ml-1">
+                  {durationLabel}
+                </span>
               </div>
               <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-500/10 text-emerald-600 rounded-full">
                 Recurring Billing
@@ -104,8 +132,14 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         </CardContent>
 
         <CardFooter className="pt-2">
+          {/* Only show Subscribe Now button if hasSubscription is false */}
           <PayNowButton
-            label="Subscribe Now (₹499/mo)"
+            label={subscribeButtonLabel}
+            planDescription={
+              formattedPrice
+                ? `HookFlow Subscription (${formattedPrice}${durationLabel})`
+                : "HookFlow Subscription"
+            }
             size="lg"
             className="w-full sm:w-auto shadow-md"
             onSuccess={onRefresh}
@@ -115,17 +149,28 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     );
   }
 
-  // Handle various subscription statuses:
+  // 3. Case: User HAS a subscription
   const isOverdue = subscription.status === "Overdue";
   const isActive = subscription.status === "Active";
   const isPending = subscription.status === "Pending";
   const isCancelled = subscription.status === "Cancelled";
 
+  // Rate information directly from subscription with planInfo fallback
+  const billingRateAmount = subscription.amount ?? planInfo?.price;
+  const billingCurrency = planInfo?.currency || "INR";
+  const billingDurationLabel = planInfo?.duration
+    ? ` / ${planInfo.duration}`
+    : " / month";
+
   return (
     <>
-      <Card className={`w-full overflow-hidden transition-all duration-200 shadow-md ${
-        isOverdue ? "border-rose-300 dark:border-rose-900/60 shadow-rose-500/5" : ""
-      }`}>
+      <Card
+        className={`w-full overflow-hidden transition-all duration-200 shadow-md ${
+          isOverdue
+            ? "border-rose-300 dark:border-rose-900/60 shadow-rose-500/5"
+            : ""
+        }`}
+      >
         {/* Overdue Urgent Alert Banner */}
         {isOverdue && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-rose-500 text-white px-6 py-3.5 text-sm font-medium shadow-sm">
@@ -163,22 +208,31 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             {isCancelled && "Subscription Cancelled"}
           </CardTitle>
           <CardDescription>
-            {isActive && `Your subscription is active and in good standing.`}
-            {isOverdue && `Payment could not be processed. Please update your card to continue service.`}
-            {isPending && `Complete checkout to activate your recurring subscription.`}
-            {isCancelled && `Billing is cancelled. Access remains valid until ${formatDate(subscription.dueDate)}.`}
+            {isActive && "Your subscription is active and in good standing."}
+            {isOverdue && "Payment could not be processed. Please update your card to continue service."}
+            {isPending && "Complete checkout to activate your recurring subscription."}
+            {isCancelled &&
+              `Billing is cancelled. Access remains valid until ${formatDate(
+                subscription.dueDate
+              )}.`}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Amount */}
+            {/* Amount / Rate */}
             <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
               <div className="text-xs font-medium text-muted-foreground">Billing Rate</div>
               <div className="mt-1 text-2xl font-bold text-foreground">
-                {formatCurrency(subscription.amount || 499)}
-                <span className="text-xs font-normal text-muted-foreground"> /mo</span>
+                {billingRateAmount !== undefined && billingRateAmount !== null ? (
+                  formatCurrency(billingRateAmount, billingCurrency)
+                ) : (
+                  <Skeleton className="h-8 w-20 inline-block" />
+                )}
+                <span className="text-xs font-normal text-muted-foreground">
+                  {billingDurationLabel}
+                </span>
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
@@ -187,18 +241,30 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             </div>
 
             {/* Next Billing / Due Date */}
-            <div className={`rounded-xl border p-4 shadow-sm ${
-              isOverdue
-                ? "border-rose-300 bg-rose-50/50 dark:bg-rose-950/20"
-                : "border-border/70 bg-card"
-            }`}>
+            <div
+              className={`rounded-xl border p-4 shadow-sm ${
+                isOverdue
+                  ? "border-rose-300 bg-rose-50/50 dark:bg-rose-950/20"
+                  : "border-border/70 bg-card"
+              }`}
+            >
               <div className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-                <span>{isCancelled ? "Access Valid Until" : isOverdue ? "Overdue Since" : "Next Billing Date"}</span>
+                <span>
+                  {isCancelled
+                    ? "Access Valid Until"
+                    : isOverdue
+                    ? "Overdue Since"
+                    : "Next Billing Date"}
+                </span>
                 <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
-              <div className={`mt-1 text-lg font-bold ${
-                isOverdue ? "text-rose-600 dark:text-rose-400" : "text-foreground"
-              }`}>
+              <div
+                className={`mt-1 text-lg font-bold ${
+                  isOverdue
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-foreground"
+                }`}
+              >
                 {formatDate(subscription.dueDate)}
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground">
@@ -209,10 +275,13 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               </div>
             </div>
 
-            {/* Subscription ID */}
+            {/* Subscription ID / Billing Reference */}
             <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
               <div className="text-xs font-medium text-muted-foreground">Billing Reference</div>
-              <div className="mt-1 font-mono text-xs font-semibold text-foreground truncate" title={subscription.razorpaySubscriptionId || "N/A"}>
+              <div
+                className="mt-1 font-mono text-xs font-semibold text-foreground truncate"
+                title={subscription.razorpaySubscriptionId || "—"}
+              >
                 {subscription.razorpaySubscriptionId || "—"}
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground">
@@ -243,9 +312,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
         <CardFooter className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-6 py-4">
           <div className="text-xs text-muted-foreground">
-            {isActive && `Protected by 256-bit encryption • Immediate plan control`}
-            {isOverdue && `Update payment method to prevent automatic plan deactivation.`}
-            {isCancelled && `Plan status is currently inactive.`}
+            {isActive && "Protected by 256-bit encryption • Immediate plan control"}
+            {isOverdue && "Update payment method to prevent automatic plan deactivation."}
+            {isCancelled && "Plan status is currently inactive."}
+            {isPending && "Pending checkout completion."}
           </div>
 
           <div className="flex items-center gap-2">
@@ -260,7 +330,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               />
             )}
 
-            {/* If Active, show Cancel Subscription button */}
+            {/* If Active, show Cancel Subscription button (or Manage Subscription / Cancel) */}
             {isActive && (
               <Button
                 variant="outline"

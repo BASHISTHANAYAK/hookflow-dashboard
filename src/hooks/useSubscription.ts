@@ -23,6 +23,8 @@ export const useSubscription = () => {
       return {
         all: subscriptions,
         current: latestSubscription,
+        hasSubscription: subscriptions.length > 0,
+        planInfo: response.planInfo || null,
         pagination: response.pagination,
       };
     },
@@ -65,6 +67,8 @@ export const useSubscription = () => {
   return {
     ...query,
     subscription: query.data?.current,
+    hasSubscription: Boolean(query.data?.hasSubscription),
+    planInfo: query.data?.planInfo,
     allSubscriptions: query.data?.all || [],
     cancelSubscription: cancelMutation.mutateAsync,
     isCancelling: cancelMutation.isPending,

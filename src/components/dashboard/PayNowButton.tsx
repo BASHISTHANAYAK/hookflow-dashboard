@@ -38,12 +38,14 @@ interface PayNowButtonProps extends Omit<ButtonProps, "onClick"> {
   onSuccess?: () => void;
   label?: string;
   isCardUpdate?: boolean;
+  planDescription?: string;
 }
 
 export const PayNowButton: React.FC<PayNowButtonProps> = ({
   onSuccess,
   label,
   isCardUpdate = false,
+  planDescription,
   variant = "default",
   size = "default",
   className,
@@ -89,7 +91,7 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
         name: "HookFlow",
         description: requiresCardUpdate
           ? "Update payment card for recurring subscription"
-          : "Monthly Subscription (499/mo)",
+          : (planDescription || "HookFlow Subscription"),
         prefill: {
           email: user?.email,
           contact: user?.phoneNumber,
