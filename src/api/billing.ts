@@ -3,6 +3,7 @@ import {
   MyPlansResponse,
   GenerateLinkResponse,
   CancelSubscriptionResponse,
+  CancelSubscriptionPayload,
 } from "../types";
 
 export const getMyPlansApi = async (
@@ -36,7 +37,12 @@ export const generateLinkApi = async (): Promise<GenerateLinkResponse> => {
   return response.data;
 };
 
-export const cancelSubscriptionApi = async (): Promise<CancelSubscriptionResponse> => {
-  const response = await apiClient.post<CancelSubscriptionResponse>("/api/billing/cancel");
+export const cancelSubscriptionApi = async (
+  payload?: CancelSubscriptionPayload
+): Promise<CancelSubscriptionResponse> => {
+  const response = await apiClient.post<CancelSubscriptionResponse>(
+    "/api/subscriptions/cancel",
+    payload || {}
+  );
   return response.data;
 };

@@ -23,7 +23,7 @@ interface SubscriptionCardProps {
   planInfo?: PlanInfo | null;
   isLoading: boolean;
   onRefresh: () => void;
-  onCancel: () => Promise<any>;
+  onCancel: (payload?: any) => Promise<any>;
   isCancelling: boolean;
 }
 
@@ -91,7 +91,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           </div>
           <CardTitle className="text-2xl font-bold mt-1">No Active Subscription</CardTitle>
           <CardDescription className="text-sm">
-            Subscribe now to unlock all premium features, automated delivery, and alerts.
+            Subscribe now to unlock all premium features, and alerts.
           </CardDescription>
         </CardHeader>
 
@@ -208,13 +208,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             {isCancelled && "Subscription Cancelled"}
           </CardTitle>
           <CardDescription>
-            {isActive && "Your subscription is active and in good standing."}
-            {isOverdue && "Payment could not be processed. Please update your card to continue service."}
+            {isActive && "Your subscription is active."}
+            {isOverdue && "Payment could not be processed. Please pay to continue service."}
             {isPending && "Complete checkout to activate your recurring subscription."}
-            {isCancelled &&
-              `Billing is cancelled. Access remains valid until ${formatDate(
-                subscription.dueDate
-              )}.`}
+            {isCancelled && "Billing is cancelled. Your subscription has ended."}
           </CardDescription>
         </CardHeader>
 
@@ -241,39 +238,38 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             </div>
 
             {/* Next Billing / Due Date */}
-            <div
-              className={`rounded-xl border p-4 shadow-sm ${
-                isOverdue
-                  ? "border-rose-300 bg-rose-50/50 dark:bg-rose-950/20"
-                  : "border-border/70 bg-card"
-              }`}
-            >
-              <div className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-                <span>
-                  {isCancelled
-                    ? "Access Valid Until"
-                    : isOverdue
-                    ? "Overdue Since"
-                    : "Next Billing Date"}
-                </span>
-                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              </div>
+            {!isCancelled && (
               <div
-                className={`mt-1 text-lg font-bold ${
+                className={`rounded-xl border p-4 shadow-sm ${
                   isOverdue
-                    ? "text-rose-600 dark:text-rose-400"
-                    : "text-foreground"
+                    ? "border-rose-300 bg-rose-50/50 dark:bg-rose-950/20"
+                    : "border-border/70 bg-card"
                 }`}
               >
-                {formatDate(subscription.dueDate)}
+                <div className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                  <span>
+                    {isOverdue
+                      ? "Overdue Since"
+                      : "Next Billing Date"}
+                  </span>
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <div
+                  className={`mt-1 text-lg font-bold ${
+                    isOverdue
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-foreground"
+                  }`}
+                >
+                  {formatDate(subscription.dueDate)}
+                </div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {isActive && "Auto-renews each billing cycle"}
+                  {isOverdue && "Payment collection overdue"}
+                  {isPending && "Awaiting initial checkout"}
+                </div>
               </div>
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                {isActive && "Auto-renews each billing cycle"}
-                {isOverdue && "Payment collection overdue"}
-                {isCancelled && "No future renewals scheduled"}
-                {isPending && "Awaiting initial checkout"}
-              </div>
-            </div>
+            )}
 
             {/* Subscription ID / Billing Reference */}
             <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
@@ -314,23 +310,34 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           <div className="text-xs text-muted-foreground">
             {isActive && "Protected by 256-bit encryption • Immediate plan control"}
             {isOverdue && "Update payment method to prevent automatic plan deactivation."}
-            {isCancelled && "Plan status is currently inactive."}
+            {isCancelled && <span className="text-destructive font-medium">Plan status: Cancelled</span>}
             {isPending && "Pending checkout completion."}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* If Overdue, show Update Card button */}
+            {/* If Overdue, show Update Card button and Cancel button */}
             {isOverdue && (
-              <PayNowButton
-                label="Update Payment Card"
-                isCardUpdate={true}
-                variant="destructive"
-                size="sm"
-                onSuccess={onRefresh}
-              />
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCancelModalOpen(true)}
+                  disabled={isCancelling}
+                  className="text-muted-foreground hover:text-destructive hover:border-destructive/50"
+                >
+                  {isCancelling ? "Cancelling..." : "Cancel Subscription"}
+                </Button>
+                <PayNowButton
+                  label="Update Payment Card"
+                  isCardUpdate={true}
+                  variant="destructive"
+                  size="sm"
+                  onSuccess={onRefresh}
+                />
+              </>
             )}
 
-            {/* If Active, show Cancel Subscription button (or Manage Subscription / Cancel) */}
+            {/* If Active, show Cancel Subscription button */}
             {isActive && (
               <Button
                 variant="outline"
@@ -339,7 +346,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 disabled={isCancelling}
                 className="text-muted-foreground hover:text-destructive hover:border-destructive/50"
               >
-                Cancel Subscription
+                {isCancelling ? "Cancelling..." : "Cancel Subscription"}
               </Button>
             )}
 
@@ -371,11 +378,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}
         onConfirm={async () => {
-          await onCancel();
+          await onCancel({ subscriptionId: subscription.razorpaySubscriptionId });
           setIsCancelModalOpen(false);
         }}
         isLoading={isCancelling}
-        dueDate={formatDate(subscription.dueDate)}
       />
     </>
   );

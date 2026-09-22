@@ -67,9 +67,16 @@ export interface GenerateLinkResponse {
   message?: string;
 }
 
+export interface CancelSubscriptionPayload {
+  subscriptionId?: string;
+  cancelImmediately?: boolean;
+  reason?: string;
+}
+
 export interface CancelSubscriptionResponse {
-  success: boolean;
+  success?: boolean;
   message: string;
+  subscription?: Subscription;
   data?: {
     status: SubscriptionStatus;
   };

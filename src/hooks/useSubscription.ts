@@ -5,7 +5,7 @@ import {
   generateLinkApi,
   cancelSubscriptionApi,
 } from "../api/billing";
-import { Subscription } from "../types";
+import { Subscription, CancelSubscriptionPayload } from "../types";
 
 export const SUBSCRIPTION_QUERY_KEY = ["subscription"];
 
@@ -33,21 +33,61 @@ export const useSubscription = () => {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: cancelSubscriptionApi,
+    mutationFn: (payload?: CancelSubscriptionPayload) => cancelSubscriptionApi(payload),
     onSuccess: (data) => {
-      toast.success("Subscription cancelled", {
-        description: data.message || "Your subscription has been cancelled.",
+      // Optimistically update query cache immediately so UI reflects "Cancelled" state with zero latency
+      queryClient.setQueryData(SUBSCRIPTION_QUERY_KEY, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          current: old.current ? { ...old.current, status: "Cancelled" } : null,
+          all: (old.all || []).map((sub: any) => ({ ...sub, status: "Cancelled" })),
+        };
       });
+
+      toast.success("Subscription Cancelled", {
+        description: data.message || "Subscription successfully cancelled with immediate effect.",
+      });
+
+      // Refetch to ensure backend synchronization
       queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_QUERY_KEY });
     },
     onError: (error: any) => {
-      const msg =
+      const status = error.response?.status;
+      const message =
         error.response?.data?.message ||
         error.message ||
         "Failed to cancel subscription.";
-      toast.error("Cancellation error", {
-        description: msg,
-      });
+
+      if (status === 400) {
+        // "Subscription is already cancelled."
+        toast.warning("Already Cancelled", {
+          description: message,
+        });
+        // Sync cache because it's already cancelled
+        queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_QUERY_KEY });
+      } else if (status === 404) {
+        // "No subscription found for this user."
+        toast.error("Subscription Not Found", {
+          description: message,
+        });
+        queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_QUERY_KEY });
+      } else if (status === 502) {
+        // "Razorpay failed to cancel the subscription. Please try again."
+        toast.error("Payment Gateway Error", {
+          description:
+            error.response?.data?.message ||
+            "Razorpay failed to cancel the subscription. Please try again.",
+        });
+      } else if (status === 401) {
+        toast.error("Unauthorized", {
+          description: "Your session has expired. Please log in again.",
+        });
+      } else {
+        toast.error("Cancellation Failed", {
+          description: message,
+        });
+      }
     },
   });
 
