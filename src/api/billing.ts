@@ -4,6 +4,8 @@ import {
   GenerateLinkResponse,
   CancelSubscriptionResponse,
   CancelSubscriptionPayload,
+  VerifySubscriptionPayload,
+  VerifySubscriptionResponse,
 } from "../types";
 
 export const getMyPlansApi = async (
@@ -43,6 +45,16 @@ export const cancelSubscriptionApi = async (
   const response = await apiClient.post<CancelSubscriptionResponse>(
     "/api/subscriptions/cancel",
     payload || {}
+  );
+  return response.data;
+};
+
+export const verifySubscriptionApi = async (
+  payload: VerifySubscriptionPayload
+): Promise<VerifySubscriptionResponse> => {
+  const response = await apiClient.post<VerifySubscriptionResponse>(
+    "/api/subscriptions/verify",
+    payload
   );
   return response.data;
 };

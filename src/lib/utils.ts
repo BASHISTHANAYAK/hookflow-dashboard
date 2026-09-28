@@ -50,3 +50,34 @@ export function formatCurrency(amount?: number | null, currency: string = "INR")
     maximumFractionDigits: 0,
   }).format(amount);
 }
+
+/**
+ * Maps backend subscription status to user-facing UI display state
+ * - "PaymentFailed" → "Overdue"
+ * - "Halted" → "Overdue"
+ * - "Pending" → "Pending"
+ * - "Active" → "Active"
+ * - "Cancelled" → "Cancelled"
+ * - "Completed" → "Completed"
+ * - "Paused" → "Paused"
+ */
+export function getSubscriptionDisplayStatus(status?: string): string {
+  switch (status) {
+    case "PaymentFailed":
+    case "Halted":
+    case "Overdue":
+      return "Overdue";
+    case "Pending":
+      return "Pending";
+    case "Active":
+      return "Active";
+    case "Cancelled":
+      return "Cancelled";
+    case "Completed":
+      return "Completed";
+    case "Paused":
+      return "Paused";
+    default:
+      return status || "None";
+  }
+}

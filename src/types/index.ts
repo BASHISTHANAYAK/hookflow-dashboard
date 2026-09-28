@@ -1,11 +1,22 @@
 export type UserRole = "CUSTOMER" | "ADMIN";
 
 export type SubscriptionStatus =
-  | "Active"
-  | "Overdue"
   | "Pending"
+  | "PaymentFailed"
+  | "Halted"
+  | "Active"
   | "Cancelled"
+  | "Completed"
   | "Paused";
+
+export type SubscriptionDisplayStatus =
+  | "Pending"
+  | "Overdue"
+  | "Active"
+  | "Cancelled"
+  | "Completed"
+  | "Paused"
+  | "None";
 
 export interface User {
   _id?: string;
@@ -62,6 +73,8 @@ export interface GenerateLinkResponse {
   success?: boolean;
   paymentLink?: string;
   subscriptionId?: string;
+  orderId?: string;
+  order_id?: string;
   requiresCardUpdate?: boolean;
   razorpaySubscriptionId?: string;
   message?: string;
@@ -80,6 +93,19 @@ export interface CancelSubscriptionResponse {
   data?: {
     status: SubscriptionStatus;
   };
+}
+
+export interface VerifySubscriptionPayload {
+  subscriptionId: string;
+  paymentId?: string;
+}
+
+export interface VerifySubscriptionResponse {
+  success: boolean;
+  status: SubscriptionStatus;
+  subscriptionId: string;
+  dueDate: string | null;
+  message?: string;
 }
 
 export interface AdminStats {
@@ -130,6 +156,7 @@ export interface RazorpayOptions {
   key: string;
   subscription_id?: string;
   subscription_card_change?: number;
+  order_id?: string;
   name?: string;
   description?: string;
   image?: string;

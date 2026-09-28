@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   CheckCircle,
   Zap,
+  PauseCircle,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "../../lib/utils";
 import { Subscription, PlanInfo } from "../../types";
@@ -22,7 +23,7 @@ interface SubscriptionCardProps {
   hasSubscription?: boolean;
   planInfo?: PlanInfo | null;
   isLoading: boolean;
-  onRefresh: () => void;
+  onRefresh: (verifyData?: any) => void | Promise<any>;
   onCancel: (payload?: any) => Promise<any>;
   isCancelling: boolean;
 }
@@ -150,10 +151,15 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   }
 
   // 3. Case: User HAS a subscription
-  const isOverdue = subscription.status === "Overdue";
+  const isPaymentFailed = subscription.status === "PaymentFailed";
+  const isHalted = subscription.status === "Halted";
+  // Both "PaymentFailed" and "Halted" display as "Overdue" in UI
+  const isOverdue = isPaymentFailed || isHalted;
   const isActive = subscription.status === "Active";
   const isPending = subscription.status === "Pending";
   const isCancelled = subscription.status === "Cancelled";
+  const isCompleted = subscription.status === "Completed";
+  const isPaused = subscription.status === "Paused";
 
   // Rate information directly from subscription with planInfo fallback
   const billingRateAmount = subscription.amount ?? planInfo?.price;
@@ -168,6 +174,8 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         className={`w-full overflow-hidden transition-all duration-200 shadow-md ${
           isOverdue
             ? "border-rose-300 dark:border-rose-900/60 shadow-rose-500/5"
+            : isPaused
+            ? "border-amber-300 dark:border-amber-900/60 shadow-amber-500/5"
             : ""
         }`}
       >
@@ -177,17 +185,29 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             <div className="flex items-center gap-2.5">
               <AlertTriangle className="h-5 w-5 shrink-0 text-white animate-pulse" />
               <span>
-                <strong>Payment Failed.</strong> Your card could not be charged. Please update your payment method to restore access.
+                <strong>Payment Failed.</strong> Please pay to restore access.
               </span>
             </div>
             <PayNowButton
-              label="Update Card Now"
-              isCardUpdate={true}
+              label="Activate Your Subscription"
+              isCardUpdate={false}
               variant="secondary"
               size="sm"
               className="bg-white text-rose-700 hover:bg-white/90 shadow-sm shrink-0 w-full sm:w-auto"
               onSuccess={onRefresh}
             />
+          </div>
+        )}
+
+        {/* Paused Alert Banner */}
+        {isPaused && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-amber-500 text-white px-6 py-3.5 text-sm font-medium shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <PauseCircle className="h-5 w-5 shrink-0 text-white" />
+              <span>
+                <strong>Subscription Paused.</strong> Your subscription is currently paused. Please contact an admin to resume your subscription.
+              </span>
+            </div>
           </div>
         )}
 
@@ -206,12 +226,17 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             {isOverdue && "Subscription Overdue"}
             {isPending && "Payment Pending"}
             {isCancelled && "Subscription Cancelled"}
+            {isCompleted && "Subscription Completed"}
+            {isPaused && "Subscription Paused"}
           </CardTitle>
           <CardDescription>
             {isActive && "Your subscription is active."}
-            {isOverdue && "Payment could not be processed. Please pay to continue service."}
+            {isPaymentFailed && "Payment failed on due date."}
+            {isHalted && "All payment retries exhausted. Please renew your subscription to reactivate your plan."}
             {isPending && "Complete checkout to activate your recurring subscription."}
             {isCancelled && "Billing is cancelled. Your subscription has ended."}
+            {isCompleted && "All billing cycles have been completed."}
+            {isPaused && "Your subscription is currently paused. Please contact an admin to resume your subscription."}
           </CardDescription>
         </CardHeader>
 
@@ -238,7 +263,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             </div>
 
             {/* Next Billing / Due Date */}
-            {!isCancelled && (
+            {!isCancelled && !isCompleted && (
               <div
                 className={`rounded-xl border p-4 shadow-sm ${
                   isOverdue
@@ -265,8 +290,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 </div>
                 <div className="mt-1 text-[11px] text-muted-foreground">
                   {isActive && "Auto-renews each billing cycle"}
-                  {isOverdue && "Payment collection overdue"}
+                  {isPaymentFailed && "Payment collection overdue • action required"}
+                  {isHalted && "Payment collection overdue • Plan halted"}
                   {isPending && "Awaiting initial checkout"}
+                  {isPaused && "Billing temporarily paused"}
                 </div>
               </div>
             )}
@@ -309,13 +336,15 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         <CardFooter className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-6 py-4">
           <div className="text-xs text-muted-foreground">
             {isActive && "Protected by 256-bit encryption • Immediate plan control"}
-            {isOverdue && "Update payment method to prevent automatic plan deactivation."}
+            {isOverdue && "pay to restore access."}
             {isCancelled && <span className="text-destructive font-medium">Plan status: Cancelled</span>}
+            {isCompleted && "All cycles completed."}
+            {isPaused && <span className="text-amber-600 dark:text-amber-400 font-medium">Subscription paused. Contact admin to resume.</span>}
             {isPending && "Pending checkout completion."}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* If Overdue, show Update Card button and Cancel button */}
+            {/* If Overdue (PaymentFailed or Halted), show Activate Your Subscription button and Cancel button */}
             {isOverdue && (
               <>
                 <Button
@@ -328,8 +357,8 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                   {isCancelling ? "Cancelling..." : "Cancel Subscription"}
                 </Button>
                 <PayNowButton
-                  label="Update Payment Card"
-                  isCardUpdate={true}
+                  label="Activate Your Subscription"
+                  isCardUpdate={false}
                   variant="destructive"
                   size="sm"
                   onSuccess={onRefresh}
@@ -369,6 +398,18 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 onSuccess={onRefresh}
               />
             )}
+
+            {/* If Completed, show Renew button */}
+            {isCompleted && (
+              <PayNowButton
+                label="Activate Your Subscription"
+                variant="default"
+                size="sm"
+                onSuccess={onRefresh}
+              />
+            )}
+
+            {/* For Paused: No action button is shown */}
           </div>
         </CardFooter>
       </Card>

@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { CreditCard, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { generateLinkApi } from "../../api/billing";
+import { generateLinkApi, verifySubscriptionApi } from "../../api/billing";
 import { useAuthStore } from "../../store/authStore";
-import { RazorpayOptions } from "../../types";
+import { RazorpayOptions, VerifySubscriptionResponse } from "../../types";
 import { Button, ButtonProps } from "../ui/button";
 
 // Dynamically load Razorpay checkout.js SDK
@@ -34,8 +34,9 @@ export const loadRazorpayScript = (): Promise<boolean> => {
   });
 };
 
-interface PayNowButtonProps extends Omit<ButtonProps, "onClick"> {
-  onSuccess?: () => void;
+interface PayNowButtonProps extends Omit<ButtonProps, "onClick" | "onError"> {
+  onSuccess?: (verifyData?: VerifySubscriptionResponse) => void | Promise<void>;
+  onError?: (error: string) => void;
   label?: string;
   isCardUpdate?: boolean;
   planDescription?: string;
@@ -43,6 +44,7 @@ interface PayNowButtonProps extends Omit<ButtonProps, "onClick"> {
 
 export const PayNowButton: React.FC<PayNowButtonProps> = ({
   onSuccess,
+  onError,
   label,
   isCardUpdate = false,
   planDescription,
@@ -65,9 +67,22 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
       // 1. Call backend to generate subscription/link
       const data = await generateLinkApi();
 
+      // Task 2: Handle Paused status error (or backend returning success: false with message)
+      if (data.success === false) {
+        toast.error("Subscription Notice", {
+          description:
+            data.message ||
+            "Your subscription is currently paused. Please contact an admin to resume your subscription.",
+        });
+        return;
+      }
+
       const subId = data.subscriptionId || data.razorpaySubscriptionId;
+      // Task 1: Respect backend requiresCardUpdate flag (overrides initial prop)
       const requiresCardUpdate =
-        Boolean(data.requiresCardUpdate) || isCardUpdate;
+        typeof data.requiresCardUpdate === "boolean"
+          ? data.requiresCardUpdate
+          : Boolean(data.requiresCardUpdate) || isCardUpdate;
 
       if (!subId) {
         throw new Error(
@@ -84,10 +99,14 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
       }
 
       // 3. Open Razorpay Checkout as a popup/modal overlay on the current page
+      const orderId = data.orderId || data.order_id;
+
       const options: RazorpayOptions = {
         key: razorpayKey,
         subscription_id: subId,
         subscription_card_change: requiresCardUpdate ? 1 : 0,
+        // Only include order_id for NEW subscriptions, not card updates
+        ...(requiresCardUpdate ? {} : (orderId ? { order_id: orderId } : {})),
         name: "HookFlow",
         description: requiresCardUpdate
           ? "Update payment card for recurring subscription"
@@ -99,15 +118,60 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
         theme: {
           color: "#4f46e5",
         },
-        handler: function (_response) {
-          // Payment successful - popup closes, stay on site and refresh subscription data
-          toast.success(
-            requiresCardUpdate
-              ? "Payment method updated successfully!"
-              : "Payment successful! Your subscription is now active."
-          );
-          if (onSuccess) {
-            onSuccess();
+        handler: async function (response) {
+          try {
+            toast.loading("Verifying payment...", { id: "verify-payment" });
+
+            const targetSubId = response.razorpay_subscription_id || subId;
+            const targetPaymentId = response.razorpay_payment_id;
+
+            // Task 1: Synchronous verification call to backend
+            const verifyData = await verifySubscriptionApi({
+              subscriptionId: targetSubId,
+              paymentId: targetPaymentId,
+            });
+
+            toast.dismiss("verify-payment");
+
+            if (verifyData.success && verifyData.status === "Active") {
+              // Payment confirmed successfully
+              toast.success(
+                requiresCardUpdate
+                  ? "Payment method updated successfully!"
+                  : "Payment confirmed! Welcome to Premium."
+              );
+              if (onSuccess) {
+                await onSuccess(verifyData);
+              }
+            } else {
+              // Payment verification failed or status not Active
+              const errorMsg =
+                verifyData.message ||
+                `Payment verification returned status: ${verifyData.status || "unconfirmed"}`;
+              onError?.(errorMsg);
+              toast.error("Payment Verification Notice", {
+                description: errorMsg,
+              });
+              if (onSuccess) {
+                await onSuccess(verifyData);
+              }
+            }
+          } catch (err: any) {
+            // Task 2: Network or server error - rely on webhook backup gracefully
+            toast.dismiss("verify-payment");
+            console.warn("Verification call failed, relying on webhook backup:", err);
+            const errorMsg =
+              err.response?.data?.message ||
+              err.message ||
+              "Verification failed, please refresh page";
+            onError?.(errorMsg);
+            toast.error("Verification Notice", {
+              description:
+                "Verification failed. If payment was successful, please refresh the page.",
+            });
+            if (onSuccess) {
+              await onSuccess();
+            }
           }
         },
         modal: {

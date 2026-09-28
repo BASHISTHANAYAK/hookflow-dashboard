@@ -5,7 +5,11 @@ import {
   generateLinkApi,
   cancelSubscriptionApi,
 } from "../api/billing";
-import { Subscription, CancelSubscriptionPayload } from "../types";
+import {
+  Subscription,
+  CancelSubscriptionPayload,
+  VerifySubscriptionResponse,
+} from "../types";
 
 export const SUBSCRIPTION_QUERY_KEY = ["subscription"];
 
@@ -114,6 +118,35 @@ export const useSubscription = () => {
     isCancelling: cancelMutation.isPending,
     generateLink: generateLinkMutation.mutateAsync,
     isGeneratingLink: generateLinkMutation.isPending,
-    refresh: () => queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_QUERY_KEY }),
+    refresh: (verifyData?: VerifySubscriptionResponse) => {
+      if (verifyData && verifyData.success) {
+        queryClient.setQueryData(SUBSCRIPTION_QUERY_KEY, (old: any) => {
+          if (!old) return old;
+          const updatedCurrent: Subscription = {
+            ...(old.current || {}),
+            status: verifyData.status || "Active",
+            razorpaySubscriptionId:
+              verifyData.subscriptionId || old.current?.razorpaySubscriptionId,
+            dueDate: verifyData.dueDate || old.current?.dueDate || "",
+          };
+          return {
+            ...old,
+            current: updatedCurrent,
+            hasSubscription: true,
+            all: [
+              updatedCurrent,
+              ...(old.all || []).filter(
+                (s: any) =>
+                  s.razorpaySubscriptionId !==
+                  updatedCurrent.razorpaySubscriptionId
+              ),
+            ],
+          };
+        });
+      }
+      return queryClient.invalidateQueries({
+        queryKey: SUBSCRIPTION_QUERY_KEY,
+      });
+    },
   };
 };
