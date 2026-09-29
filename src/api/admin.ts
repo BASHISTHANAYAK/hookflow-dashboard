@@ -2,7 +2,6 @@ import { apiClient } from "./axios";
 import {
   AdminStatsResponse,
   AdminUsersResponse,
-  SimulateFailureResponse,
 } from "../types";
 
 export const getAdminStatsApi = async (
@@ -26,15 +25,5 @@ export const getAllUsersApi = async (
   const response = await apiClient.get<AdminUsersResponse>("/api/admin/users", {
     params: { page, limit },
   });
-  return response.data;
-};
-
-export const simulateFailureApi = async (
-  userId: string
-): Promise<SimulateFailureResponse> => {
-  const response = await apiClient.post<SimulateFailureResponse>(
-    "/api/admin/simulate-failure",
-    { userId }
-  );
   return response.data;
 };

@@ -5,9 +5,9 @@ import {
   ChevronRight,
   Phone,
   Calendar,
-  Terminal,
+  Clock,
 } from "lucide-react";
-import { formatDate, formatCurrency } from "../../lib/utils";
+import { formatDate, formatDateTime, formatCurrency } from "../../lib/utils";
 import { AdminUser, Pagination } from "../../types";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -19,7 +19,6 @@ interface UsersTableProps {
   pagination: Pagination;
   isLoading: boolean;
   onPageChange: (newPage: number) => void;
-  onSelectUserForSimulation?: (userId: string) => void;
 }
 
 export const UsersTable: React.FC<UsersTableProps> = ({
@@ -27,7 +26,6 @@ export const UsersTable: React.FC<UsersTableProps> = ({
   pagination,
   isLoading,
   onPageChange,
-  onSelectUserForSimulation,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -71,9 +69,9 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                 <th scope="col" className="px-6 py-3.5">User / Email</th>
                 <th scope="col" className="px-6 py-3.5">Phone Number</th>
                 <th scope="col" className="px-6 py-3.5">Status</th>
+                <th scope="col" className="px-6 py-3.5">Created At</th>
                 <th scope="col" className="px-6 py-3.5">Due Date</th>
                 <th scope="col" className="px-6 py-3.5">Plan Rate</th>
-                <th scope="col" className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
@@ -84,8 +82,8 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                     <td className="px-6 py-4"><Skeleton className="h-4 w-28" /></td>
                     <td className="px-6 py-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
                     <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
                     <td className="px-6 py-4"><Skeleton className="h-4 w-16" /></td>
-                    <td className="px-6 py-4 text-right"><Skeleton className="h-8 w-24 ml-auto" /></td>
                   </tr>
                 ))
               ) : filteredUsers.length === 0 ? (
@@ -114,25 +112,17 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                     <td className="px-6 py-4">
                       <StatusBadge status={u.status} />
                     </td>
-                    <td className="px-6 py-4 text-xs text-muted-foreground">
+                    <td
+                      className="px-6 py-4 text-xs text-muted-foreground whitespace-nowrap"
+                      title={u.createdAt ? formatDateTime(u.createdAt) : undefined}
+                    >
+                      {formatDate(u.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-muted-foreground whitespace-nowrap">
                       {formatDate(u.dueDate)}
                     </td>
                     <td className="px-6 py-4 font-semibold text-foreground">
                       {formatCurrency(u.amount)}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {onSelectUserForSimulation && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onSelectUserForSimulation(u.userId)}
-                          className="h-8 gap-1 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
-                          title="Fill user ID into Dev Failure Simulator"
-                        >
-                          <Terminal className="h-3.5 w-3.5" />
-                          Simulate
-                        </Button>
-                      )}
                     </td>
                   </tr>
                 ))
@@ -177,27 +167,23 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                   <Phone className="h-3.5 w-3.5 shrink-0" />
                   <span>{u.phoneNumber || "—"}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground justify-end">
-                  <Calendar className="h-3.5 w-3.5 shrink-0" />
-                  <span>{formatDate(u.dueDate)}</span>
+                <div className="flex items-center gap-1.5 text-muted-foreground justify-end font-semibold text-foreground">
+                  {formatCurrency(u.amount)}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-border/60">
-                <span className="text-sm font-bold text-foreground">
-                  {formatCurrency(u.amount)}
-                </span>
-                {onSelectUserForSimulation && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onSelectUserForSimulation(u.userId)}
-                    className="h-8 text-xs gap-1"
-                  >
-                    <Terminal className="h-3.5 w-3.5" />
-                    Simulate Failure
-                  </Button>
-                )}
+              <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-border/60 text-muted-foreground">
+                <div
+                  className="flex items-center gap-1.5"
+                  title={u.createdAt ? formatDateTime(u.createdAt) : undefined}
+                >
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  <span>Created: {formatDate(u.createdAt)}</span>
+                </div>
+                <div className="flex items-center gap-1.5 justify-end">
+                  <Calendar className="h-3.5 w-3.5 shrink-0" />
+                  <span>Due: {formatDate(u.dueDate)}</span>
+                </div>
               </div>
             </div>
           ))

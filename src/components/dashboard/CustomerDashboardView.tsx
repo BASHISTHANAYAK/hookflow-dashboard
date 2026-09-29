@@ -5,7 +5,6 @@ import { SubscriptionCard } from "./SubscriptionCard";
 import { Button } from "../ui/button";
 
 export const CustomerDashboardView: React.FC = () => {
-  // Fetch subscription & planInfo data for CUSTOMER users
   const {
     subscription,
     hasSubscription,
@@ -19,7 +18,6 @@ export const CustomerDashboardView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in-50 duration-300">
-      {/* Clean Customer Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">

@@ -16,6 +16,7 @@ export type SubscriptionDisplayStatus =
   | "Cancelled"
   | "Completed"
   | "Paused"
+  | "Processing"
   | "None";
 
 export interface User {
@@ -127,6 +128,7 @@ export interface AdminUser {
   status: SubscriptionStatus;
   dueDate: string;
   amount: number;
+  createdAt?: string | null;
 }
 
 export interface AdminUsersResponse {
@@ -141,15 +143,6 @@ export interface AdminUsersResponse {
     };
   };
   message?: string;
-}
-
-export interface SimulateFailureResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    newStatus: string;
-    newDueDate: string;
-  };
 }
 
 export interface RazorpayOptions {

@@ -6,7 +6,6 @@ import { useAuthStore } from "../../store/authStore";
 import { RazorpayOptions, VerifySubscriptionResponse } from "../../types";
 import { Button, ButtonProps } from "../ui/button";
 
-// Dynamically load Razorpay checkout.js SDK
 export const loadRazorpayScript = (): Promise<boolean> => {
   return new Promise((resolve) => {
     if (typeof window.Razorpay === "function") {
@@ -27,7 +26,6 @@ export const loadRazorpayScript = (): Promise<boolean> => {
     script.async = true;
     script.onload = () => resolve(true);
     script.onerror = () => {
-      console.error("Failed to load Razorpay Checkout SDK");
       resolve(false);
     };
     document.body.appendChild(script);
@@ -37,6 +35,7 @@ export const loadRazorpayScript = (): Promise<boolean> => {
 interface PayNowButtonProps extends Omit<ButtonProps, "onClick" | "onError"> {
   onSuccess?: (verifyData?: VerifySubscriptionResponse) => void | Promise<void>;
   onError?: (error: string) => void;
+  onPaymentProcessing?: () => void;
   label?: string;
   isCardUpdate?: boolean;
   planDescription?: string;
@@ -45,6 +44,7 @@ interface PayNowButtonProps extends Omit<ButtonProps, "onClick" | "onError"> {
 export const PayNowButton: React.FC<PayNowButtonProps> = ({
   onSuccess,
   onError,
+  onPaymentProcessing,
   label,
   isCardUpdate = false,
   planDescription,
@@ -64,10 +64,8 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
     try {
       toast.info("Preparing checkout modal...", { duration: 2000 });
 
-      // 1. Call backend to generate subscription/link
       const data = await generateLinkApi();
 
-      // Task 2: Handle Paused status error (or backend returning success: false with message)
       if (data.success === false) {
         toast.error("Subscription Notice", {
           description:
@@ -78,7 +76,6 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
       }
 
       const subId = data.subscriptionId || data.razorpaySubscriptionId;
-      // Task 1: Respect backend requiresCardUpdate flag (overrides initial prop)
       const requiresCardUpdate =
         typeof data.requiresCardUpdate === "boolean"
           ? data.requiresCardUpdate
@@ -90,7 +87,6 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
         );
       }
 
-      // 2. Ensure Razorpay checkout.js SDK is loaded
       const isLoaded = await loadRazorpayScript();
       if (!isLoaded || typeof window.Razorpay !== "function") {
         throw new Error(
@@ -98,14 +94,12 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
         );
       }
 
-      // 3. Open Razorpay Checkout as a popup/modal overlay on the current page
       const orderId = data.orderId || data.order_id;
 
       const options: RazorpayOptions = {
         key: razorpayKey,
         subscription_id: subId,
         subscription_card_change: requiresCardUpdate ? 1 : 0,
-        // Only include order_id for NEW subscriptions, not card updates
         ...(requiresCardUpdate ? {} : (orderId ? { order_id: orderId } : {})),
         name: "HookFlow",
         description: requiresCardUpdate
@@ -119,13 +113,40 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
           color: "#4f46e5",
         },
         handler: async function (response) {
+          const targetSubId = response.razorpay_subscription_id || subId;
+          const targetPaymentId = response.razorpay_payment_id;
+
+          if (requiresCardUpdate) {
+            try {
+              toast.loading("Verifying payment method...", { id: "verify-payment" });
+              const verifyData = await verifySubscriptionApi({
+                subscriptionId: targetSubId,
+                paymentId: targetPaymentId,
+              });
+              toast.dismiss("verify-payment");
+
+              if (verifyData.success && verifyData.status === "Active") {
+                toast.success("Payment method updated successfully! Your subscription is active.");
+                if (onSuccess) {
+                  await onSuccess(verifyData);
+                }
+                return;
+              }
+            } catch {
+              toast.dismiss("verify-payment");
+            }
+
+            if (onPaymentProcessing) {
+              onPaymentProcessing();
+            } else if (onSuccess) {
+              await onSuccess();
+            }
+            return;
+          }
+
           try {
             toast.loading("Verifying payment...", { id: "verify-payment" });
 
-            const targetSubId = response.razorpay_subscription_id || subId;
-            const targetPaymentId = response.razorpay_payment_id;
-
-            // Task 1: Synchronous verification call to backend
             const verifyData = await verifySubscriptionApi({
               subscriptionId: targetSubId,
               paymentId: targetPaymentId,
@@ -134,17 +155,11 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
             toast.dismiss("verify-payment");
 
             if (verifyData.success && verifyData.status === "Active") {
-              // Payment confirmed successfully
-              toast.success(
-                requiresCardUpdate
-                  ? "Payment method updated successfully!"
-                  : "Payment confirmed! Welcome to Premium."
-              );
+              toast.success("Payment confirmed! Welcome to Premium.");
               if (onSuccess) {
                 await onSuccess(verifyData);
               }
             } else {
-              // Payment verification failed or status not Active
               const errorMsg =
                 verifyData.message ||
                 `Payment verification returned status: ${verifyData.status || "unconfirmed"}`;
@@ -157,9 +172,7 @@ export const PayNowButton: React.FC<PayNowButtonProps> = ({
               }
             }
           } catch (err: any) {
-            // Task 2: Network or server error - rely on webhook backup gracefully
             toast.dismiss("verify-payment");
-            console.warn("Verification call failed, relying on webhook backup:", err);
             const errorMsg =
               err.response?.data?.message ||
               err.message ||

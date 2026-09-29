@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, AlertCircle, Clock, XCircle, PauseCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle, Clock, XCircle, PauseCircle, Loader2 } from "lucide-react";
 import { SubscriptionStatus } from "../../types";
 import { Badge } from "../ui/badge";
 import { getSubscriptionDisplayStatus } from "../../lib/utils";
@@ -18,6 +18,13 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
         <Badge variant="success" className={`gap-1.5 font-medium ${className}`}>
           <CheckCircle2 className="h-3.5 w-3.5" />
           Active
+        </Badge>
+      );
+    case "Processing":
+      return (
+        <Badge variant="warning" className={`gap-1.5 font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 ${className}`}>
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Payment Processing
         </Badge>
       );
     case "Overdue":

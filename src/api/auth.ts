@@ -32,7 +32,6 @@ export const registerApi = async (payload: RegisterPayload): Promise<RegisterRes
 
 export const loginApi = async (payload: LoginPayload): Promise<LoginResponse> => {
   const response = await apiClient.post<LoginResponse>("/auth/login", payload);
-  // Some backends return 200 with an error message on wrong credentials
   if (!response.data.token && response.data.message?.toLowerCase().includes("incorrect")) {
     throw new Error(response.data.message || "Invalid credentials");
   }

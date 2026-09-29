@@ -77,6 +77,8 @@ export function getSubscriptionDisplayStatus(status?: string): string {
       return "Completed";
     case "Paused":
       return "Paused";
+    case "Processing":
+      return "Processing";
     default:
       return status || "None";
   }

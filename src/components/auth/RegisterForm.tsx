@@ -54,7 +54,6 @@ export const RegisterForm: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // 1. Register customer account and receive token directly
       const registerRes = await registerApi({
         email: email.trim(),
         password,
@@ -65,14 +64,12 @@ export const RegisterForm: React.FC = () => {
         throw new Error(registerRes.message || "Registration succeeded but session token was missing.");
       }
 
-      // 2. Immediately store token and user in Zustand & localStorage
       setAuth(registerRes.user, registerRes.token);
 
       toast.success("Account created successfully!", {
         description: `Welcome to HookFlow, ${registerRes.user.email}!`,
       });
 
-      // 3. Direct auto-login redirect to dashboard
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
       const msg =

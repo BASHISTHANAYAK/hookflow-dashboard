@@ -2,14 +2,13 @@ import React from "react";
 import {
   LayoutDashboard,
   Users,
-  Terminal,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { Button } from "../ui/button";
 
-export type AdminTab = "overview" | "users" | "sandbox";
+export type AdminTab = "overview" | "users";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -41,12 +40,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: "User Subscriptions",
       icon: Users,
       description: "Manage accounts",
-    },
-    {
-      id: "sandbox",
-      label: "Dev Sandbox",
-      icon: Terminal,
-      description: "Simulate failures",
     },
   ];
 

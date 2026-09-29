@@ -18,7 +18,6 @@ export const getMyPlansApi = async (
     });
     return response.data;
   } catch (error: any) {
-    // If backend returns 400 for "Subscrptions not found", normalize it as an empty subscription list
     if (
       error.response?.status === 400 &&
       error.response?.data?.message?.toLowerCase().includes("not found")

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   CreditCard,
   Calendar,
@@ -8,9 +8,12 @@ import {
   CheckCircle,
   Zap,
   PauseCircle,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { formatDate, formatCurrency } from "../../lib/utils";
 import { Subscription, PlanInfo } from "../../types";
+import { getMyPlansApi } from "../../api/billing";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../ui/card";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
@@ -38,8 +41,59 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   isCancelling,
 }) => {
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
 
-  // 1. Loading Skeleton State to prevent layout shift
+  const handlePaymentProcessing = () => {
+    setIsPaymentProcessing(true);
+    toast.loading(
+      "Payment Processing: Payment method updated. Waiting for confirmation...",
+      { id: "payment-processing", duration: 60000 }
+    );
+
+    let attempts = 0;
+    const maxAttempts = 20;
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      try {
+        const freshData = await getMyPlansApi();
+        const activeSub = freshData.subscriptions?.[0] || freshData.getAllActiveSubscrptions?.[0];
+
+        if (activeSub && activeSub.status === "Active") {
+          clearInterval(pollInterval);
+          setIsPaymentProcessing(false);
+          toast.dismiss("payment-processing");
+          toast.success("Payment confirmed! Your subscription is now active.");
+          onRefresh();
+          return;
+        }
+
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          setIsPaymentProcessing(false);
+          toast.dismiss("payment-processing");
+          toast.info(
+            "Payment is taking a moment to process. Please refresh the page shortly.",
+            { duration: 5000 }
+          );
+          onRefresh();
+        }
+      } catch {
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          setIsPaymentProcessing(false);
+          toast.dismiss("payment-processing");
+          onRefresh();
+        }
+      }
+    }, 3000);
+  };
+
+  useEffect(() => {
+    return () => {
+      toast.dismiss("payment-processing");
+    };
+  }, []);
+
   if (isLoading) {
     return (
       <Card className="w-full overflow-hidden border-border/80 shadow-md">
@@ -62,10 +116,8 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     );
   }
 
-  // Determine if user has subscription
   const userHasSubscription = Boolean(hasSubscription || subscription);
 
-  // 2. Case: User has NO active subscription
   if (!userHasSubscription || !subscription) {
     const formattedPrice =
       planInfo?.price !== undefined
@@ -133,7 +185,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         </CardContent>
 
         <CardFooter className="pt-2">
-          {/* Only show Subscribe Now button if hasSubscription is false */}
           <PayNowButton
             label={subscribeButtonLabel}
             planDescription={
@@ -150,10 +201,8 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     );
   }
 
-  // 3. Case: User HAS a subscription
   const isPaymentFailed = subscription.status === "PaymentFailed";
   const isHalted = subscription.status === "Halted";
-  // Both "PaymentFailed" and "Halted" display as "Overdue" in UI
   const isOverdue = isPaymentFailed || isHalted;
   const isActive = subscription.status === "Active";
   const isPending = subscription.status === "Pending";
@@ -161,7 +210,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const isCompleted = subscription.status === "Completed";
   const isPaused = subscription.status === "Paused";
 
-  // Rate information directly from subscription with planInfo fallback
   const billingRateAmount = subscription.amount ?? planInfo?.price;
   const billingCurrency = planInfo?.currency || "INR";
   const billingDurationLabel = planInfo?.duration
@@ -172,34 +220,46 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     <>
       <Card
         className={`w-full overflow-hidden transition-all duration-200 shadow-md ${
-          isOverdue
+          isPaymentProcessing
+            ? "border-amber-300 dark:border-amber-900/60 shadow-amber-500/5"
+            : isOverdue
             ? "border-rose-300 dark:border-rose-900/60 shadow-rose-500/5"
             : isPaused
             ? "border-amber-300 dark:border-amber-900/60 shadow-amber-500/5"
             : ""
         }`}
       >
-        {/* Overdue Urgent Alert Banner */}
-        {isOverdue && (
+        {isPaymentProcessing && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-amber-500 text-white px-6 py-3.5 text-sm font-medium shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <Loader2 className="h-5 w-5 shrink-0 text-white animate-spin" />
+              <span>
+                <strong>Payment Processing.</strong> Payment method updated. Waiting for confirmation from Razorpay...
+              </span>
+            </div>
+          </div>
+        )}
+
+        {!isPaymentProcessing && isOverdue && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-rose-500 text-white px-6 py-3.5 text-sm font-medium shadow-sm">
             <div className="flex items-center gap-2.5">
               <AlertTriangle className="h-5 w-5 shrink-0 text-white animate-pulse" />
               <span>
-                <strong>Payment Failed.</strong> Please pay to restore access.
+                <strong>Payment Failed.</strong> {isPaymentFailed ? "Update payment card to restore access." : "Please renew to restore access."}
               </span>
             </div>
             <PayNowButton
-              label="Activate Your Subscription"
-              isCardUpdate={false}
+              label={isPaymentFailed ? "Update Payment Card" : "Activate Your Subscription"}
+              isCardUpdate={isPaymentFailed}
               variant="secondary"
               size="sm"
               className="bg-white text-rose-700 hover:bg-white/90 shadow-sm shrink-0 w-full sm:w-auto"
               onSuccess={onRefresh}
+              onPaymentProcessing={handlePaymentProcessing}
             />
           </div>
         )}
 
-        {/* Paused Alert Banner */}
         {isPaused && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-amber-500 text-white px-6 py-3.5 text-sm font-medium shadow-sm">
             <div className="flex items-center gap-2.5">
@@ -219,31 +279,31 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 Current Plan
               </span>
             </div>
-            <StatusBadge status={subscription.status} />
+            <StatusBadge status={isPaymentProcessing ? "Processing" : subscription.status} />
           </div>
           <CardTitle className="text-2xl font-bold mt-1">
-            {isActive && "Active Subscription"}
-            {isOverdue && "Subscription Overdue"}
-            {isPending && "Payment Pending"}
-            {isCancelled && "Subscription Cancelled"}
-            {isCompleted && "Subscription Completed"}
-            {isPaused && "Subscription Paused"}
+            {isPaymentProcessing && "Payment Processing"}
+            {!isPaymentProcessing && isActive && "Active Subscription"}
+            {!isPaymentProcessing && isOverdue && "Subscription Overdue"}
+            {!isPaymentProcessing && isPending && "Payment Pending"}
+            {!isPaymentProcessing && isCancelled && "Subscription Cancelled"}
+            {!isPaymentProcessing && isCompleted && "Subscription Completed"}
+            {!isPaymentProcessing && isPaused && "Subscription Paused"}
           </CardTitle>
           <CardDescription>
-            {isActive && "Your subscription is active."}
-            {isPaymentFailed && "Payment failed on due date."}
-            {isHalted && "All payment retries exhausted. Please renew your subscription to reactivate your plan."}
-            {isPending && "Complete checkout to activate your recurring subscription."}
-            {isCancelled && "Billing is cancelled. Your subscription has ended."}
-            {isCompleted && "All billing cycles have been completed."}
-            {isPaused && "Your subscription is currently paused. Please contact an admin to resume your subscription."}
+            {isPaymentProcessing && "Your payment method was updated. We are confirming your payment with Razorpay..."}
+            {!isPaymentProcessing && isActive && "Your subscription is active."}
+            {!isPaymentProcessing && isPaymentFailed && "Payment failed on due date. Update your payment card to restore access."}
+            {!isPaymentProcessing && isHalted && "All payment retries exhausted. Please renew your subscription to reactivate your plan."}
+            {!isPaymentProcessing && isPending && "Complete checkout to activate your recurring subscription."}
+            {!isPaymentProcessing && isCancelled && "Billing is cancelled. Your subscription has ended."}
+            {!isPaymentProcessing && isCompleted && "All billing cycles have been completed."}
+            {!isPaymentProcessing && isPaused && "Your subscription is currently paused. Please contact an admin to resume your subscription."}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Key Metrics Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Amount / Rate */}
             <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
               <div className="text-xs font-medium text-muted-foreground">Billing Rate</div>
               <div className="mt-1 text-2xl font-bold text-foreground">
@@ -262,7 +322,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               </div>
             </div>
 
-            {/* Next Billing / Due Date */}
             {!isCancelled && !isCompleted && (
               <div
                 className={`rounded-xl border p-4 shadow-sm ${
@@ -298,7 +357,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               </div>
             )}
 
-            {/* Subscription ID / Billing Reference */}
             <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
               <div className="text-xs font-medium text-muted-foreground">Billing Reference</div>
               <div
@@ -313,7 +371,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             </div>
           </div>
 
-          {/* Pending Callout */}
           {isPending && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
               <div className="flex items-center gap-3">
@@ -335,38 +392,45 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
         <CardFooter className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-6 py-4">
           <div className="text-xs text-muted-foreground">
-            {isActive && "Protected by 256-bit encryption • Immediate plan control"}
-            {isOverdue && "pay to restore access."}
-            {isCancelled && <span className="text-destructive font-medium">Plan status: Cancelled</span>}
-            {isCompleted && "All cycles completed."}
-            {isPaused && <span className="text-amber-600 dark:text-amber-400 font-medium">Subscription paused. Contact admin to resume.</span>}
-            {isPending && "Pending checkout completion."}
+            {isPaymentProcessing && "Payment processing in background • Refreshing shortly"}
+            {!isPaymentProcessing && isActive && "Protected by 256-bit encryption • Immediate plan control"}
+            {!isPaymentProcessing && isOverdue && (isPaymentFailed ? "Update payment card to restore access." : "Renew plan to restore access.")}
+            {!isPaymentProcessing && isCancelled && <span className="text-destructive font-medium">Plan status: Cancelled</span>}
+            {!isPaymentProcessing && isCompleted && "All cycles completed."}
+            {!isPaymentProcessing && isPaused && <span className="text-amber-600 dark:text-amber-400 font-medium">Subscription paused. Contact admin to resume.</span>}
+            {!isPaymentProcessing && isPending && "Pending checkout completion."}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* If Overdue (PaymentFailed or Halted), show Activate Your Subscription button and Cancel button */}
             {isOverdue && (
               <>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setIsCancelModalOpen(true)}
-                  disabled={isCancelling}
+                  disabled={isCancelling || isPaymentProcessing}
                   className="text-muted-foreground hover:text-destructive hover:border-destructive/50"
                 >
                   {isCancelling ? "Cancelling..." : "Cancel Subscription"}
                 </Button>
-                <PayNowButton
-                  label="Activate Your Subscription"
-                  isCardUpdate={false}
-                  variant="destructive"
-                  size="sm"
-                  onSuccess={onRefresh}
-                />
+                {isPaymentProcessing ? (
+                  <Button size="sm" variant="secondary" disabled className="gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing...
+                  </Button>
+                ) : (
+                  <PayNowButton
+                    label={isPaymentFailed ? "Update Payment Card" : "Activate Your Subscription"}
+                    isCardUpdate={isPaymentFailed}
+                    variant="destructive"
+                    size="sm"
+                    onSuccess={onRefresh}
+                    onPaymentProcessing={handlePaymentProcessing}
+                  />
+                )}
               </>
             )}
 
-            {/* If Active, show Cancel Subscription button */}
             {isActive && (
               <Button
                 variant="outline"
@@ -379,7 +443,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               </Button>
             )}
 
-            {/* If Cancelled, show Resubscribe button */}
             {isCancelled && (
               <PayNowButton
                 label="Resubscribe"
@@ -389,7 +452,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               />
             )}
 
-            {/* If Pending, allow completing checkout via modal */}
             {isPending && (
               <PayNowButton
                 label="Complete Payment"
@@ -399,7 +461,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               />
             )}
 
-            {/* If Completed, show Renew button */}
             {isCompleted && (
               <PayNowButton
                 label="Activate Your Subscription"
@@ -408,13 +469,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 onSuccess={onRefresh}
               />
             )}
-
-            {/* For Paused: No action button is shown */}
           </div>
         </CardFooter>
       </Card>
 
-      {/* Cancellation Confirmation Dialog */}
       <CancelModal
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}

@@ -51,7 +51,6 @@ export const LoginForm: React.FC = () => {
         description: `Signed in as ${user.email}`,
       });
 
-      // Redirect based on previous location or user role
       const from = (location.state as any)?.from?.pathname;
       if (from) {
         navigate(from, { replace: true });
