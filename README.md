@@ -114,10 +114,10 @@ Unlike basic CRUD payment apps, HookFlow implements a **resilient dual-verificat
 ```text
 hookflow-dashboard/
 ├── public/
-│   ├── Active subscrption.png            # Customer active dashboard preview
-│   ├── Admin Analytics Overview.png      # Admin KPI analytics preview
-│   ├── Admin user subscrptions list.png  # Admin user audit table preview
-│   └── Overdue auto debit failed.png     # Dunning / Mandate update preview
+│   ├── Active_subscrption.png            # Customer active dashboard preview
+│   ├── Admin_Analytics_Overview.png      # Admin KPI analytics preview
+│   ├── Admin_user_subscrptions_list.png  # Admin user audit table preview
+│   └── Overdue_auto_debit_failed.png     # Dunning / Mandate update preview
 ├── src/
 │   ├── api/
 │   │   ├── admin.ts                      # Admin stats and user list endpoints
