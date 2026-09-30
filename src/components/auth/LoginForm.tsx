@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Mail, Lock, ArrowRight } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { loginApi } from "../../api/auth";
 import { useAuthStore } from "../../store/authStore";
 import { Button } from "../ui/button";
@@ -16,7 +16,20 @@ export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showColdStartWarning, setShowColdStartWarning] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isLoading) {
+      timer = setTimeout(() => {
+        setShowColdStartWarning(true);
+      }, 3000);
+    } else {
+      setShowColdStartWarning(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   const validate = () => {
     const errs: { email?: string; password?: string } = {};
@@ -129,6 +142,13 @@ export const LoginForm: React.FC = () => {
         Sign In
         <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
+
+      {showColdStartWarning && (
+        <div className="flex items-center justify-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-in fade-in duration-300">
+          <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
+          <span>Waking up server (Free Tier). This may take up to 50 seconds...</span>
+        </div>
+      )}
 
       <div className="pt-2 text-center text-xs text-muted-foreground">
         Don&apos;t have an account?{" "}

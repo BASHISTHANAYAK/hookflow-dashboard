@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Mail, Lock, Phone, ArrowRight } from "lucide-react";
+import { Mail, Lock, Phone, ArrowRight, Loader2 } from "lucide-react";
 import { registerApi } from "../../api/auth";
 import { useAuthStore } from "../../store/authStore";
 import { Button } from "../ui/button";
@@ -16,11 +16,24 @@ export const RegisterForm: React.FC = () => {
   const [password, setPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("+91");
   const [isLoading, setIsLoading] = useState(false);
+  const [showColdStartWarning, setShowColdStartWarning] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
     phoneNumber?: string;
   }>({});
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isLoading) {
+      timer = setTimeout(() => {
+        setShowColdStartWarning(true);
+      }, 3000);
+    } else {
+      setShowColdStartWarning(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   const validate = () => {
     const errs: { email?: string; password?: string; phoneNumber?: string } = {};
@@ -165,6 +178,13 @@ export const RegisterForm: React.FC = () => {
         Create Account & Go to Dashboard
         <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
+
+      {showColdStartWarning && (
+        <div className="flex items-center justify-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-in fade-in duration-300">
+          <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
+          <span>Waking up server (Free Tier). This may take up to 50 seconds...</span>
+        </div>
+      )}
 
       <div className="pt-2 text-center text-xs text-muted-foreground">
         Already registered?{" "}
